@@ -1026,7 +1026,12 @@ git commit -m "add instrument form & new"
 git push origin uploader
 
 ```
+
+
+# 美化首页页面
 ```
+git checkout -b index
+---
 app/views/instruments/index.html.erb
 ---
 <p id="notice"><%= notice %></p>
@@ -1114,6 +1119,18 @@ app/views/instruments/index.html.erb
   <% end %>
 </div>
 ---
+
+app/helpers/instruments_helper.rb
+---
+module InstrumentsHelper
+
+ def instrument_author(instrument)
+   user_signed_in? && current_user.id == instrument.user_id
+ end
+
+end
+---
+
 app/views/instruments/show.html.erb
 ---
 <p id="notice"><%= notice %></p>
@@ -1230,16 +1247,13 @@ app/views/instruments/show.html.erb
   <% end %>
 </section>
 ---
-app/helpers/instruments_helper.rb
----
-module InstrumentsHelper
 
-  def instrument_author(instrument)
-    user_signed_in? && current_user.id == instrument.user_id
-  end
-
-end
----
-```
 ![image](https://ws3.sinaimg.cn/large/006tNc79ly1fq23oidipcj31kw0np1hr.jpg)
 ![image](https://ws2.sinaimg.cn/large/006tNc79ly1fq23omp06qj31kw0l7af2.jpg)
+
+```
+git add .
+git commit -m "add index show"
+git push origin index
+```
+
