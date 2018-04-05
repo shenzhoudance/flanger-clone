@@ -529,5 +529,5 @@ $link-hover: #222;
 ```
 git add .
 git commit -m "add devise & index & scss"
-git push origin gem
+git push origin gems
 ```
