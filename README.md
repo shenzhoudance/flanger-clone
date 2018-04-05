@@ -1247,7 +1247,7 @@ app/views/instruments/show.html.erb
   <% end %>
 </section>
 ---
-
+```
 ![image](https://ws3.sinaimg.cn/large/006tNc79ly1fq23oidipcj31kw0np1hr.jpg)
 ![image](https://ws2.sinaimg.cn/large/006tNc79ly1fq23omp06qj31kw0l7af2.jpg)
 
@@ -1256,4 +1256,3 @@ git add .
 git commit -m "add index show"
 git push origin index
 ```
-
