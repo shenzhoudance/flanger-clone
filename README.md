@@ -531,3 +531,77 @@ git add .
 git commit -m "add devise & index & scss"
 git push origin gems
 ```
+```
+git checkout -b scaffold
+rails g scaffold Instrument brand:string model:string description:text condition:string finish:string title:string price:decimal
+```
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq1upzy85dj31hi0m8tea.jpg)
+---
+```
+db/migrate/20180405081601_create_instruments.rb
+---
+class CreateInstruments < ActiveRecord::Migration[5.1]
+  def change
+    create_table :instruments do |t|
+      t.string :brand
+      t.string :model
+      t.text :description
+      t.string :condition
+      t.string :finish
+      t.string :title
+      t.decimal :price
+
+      t.timestamps
+    end
+  end
+end
+---
+class CreateInstruments < ActiveRecord::Migration[5.1]
+  def change
+    create_table :instruments do |t|
+      t.string :brand
+      t.string :model
+      t.text :description
+      t.string :condition
+      t.string :finish
+      t.string :title
+      t.decimal :price, precision: 5, scale: 2, default: 0
+
+      t.timestamps
+    end
+  end
+end
+---
+rake db:migrate
+rails server
+http://localhost:3000/instruments/new
+---
+```
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq1uulkmgoj31kw0hj41e.jpg)
+```
+---
+config/routes.rb
+---
+Rails.application.routes.draw do
+  resources :instruments
+  devise_for :users, conrollers: {
+    registrations: 'registrations'
+  }
+  root 'store#index'
+end
+
+---
+Rails.application.routes.draw do
+  resources :instruments
+  devise_for :users, conrollers: {
+    registrations: 'registrations'
+  }
+  root 'instruments#index'
+end
+```
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq1uxhkvp1j31kw09rq48.jpg)
+```
+git add .
+git commit -m "add instruments root index "
+git push origin scaffold
+```
