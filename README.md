@@ -1024,7 +1024,9 @@ document.addEventListener("turbolinks:load", function() {
 git add .
 git commit -m "add instrument form & new"
 git push origin uploader
+
 ```
+
 
 # 美化首页页面
 ```
@@ -1071,7 +1073,6 @@ app/views/instruments/index.html.erb
 <br>
 
 <%= link_to 'New Instrument', new_instrument_path %>
-
 ---
 <% content_for :header do %>
 <section class="hero is-warning">
@@ -1118,6 +1119,7 @@ app/views/instruments/index.html.erb
   <% end %>
 </div>
 ---
+
 app/helpers/instruments_helper.rb
 ---
 module InstrumentsHelper
@@ -1128,6 +1130,7 @@ module InstrumentsHelper
 
 end
 ---
+
 app/views/instruments/show.html.erb
 ---
 <p id="notice"><%= notice %></p>
@@ -1244,14 +1247,13 @@ app/views/instruments/show.html.erb
   <% end %>
 </section>
 ---
-```
-![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq21uidg5nj31kw08rt9t.jpg)
-![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq21ubkqslj31kw0crwgd.jpg)
-![image](https://ws2.sinaimg.cn/large/006tNc79gy1fq21u3i561j31kw0k2teg.jpg)
-![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq21v3ng2rj31kw0nf4qp.jpg)
+
+![image](https://ws3.sinaimg.cn/large/006tNc79ly1fq23oidipcj31kw0np1hr.jpg)
+![image](https://ws2.sinaimg.cn/large/006tNc79ly1fq23omp06qj31kw0l7af2.jpg)
 
 ```
 git add .
 git commit -m "add index show"
 git push origin index
 ```
+
