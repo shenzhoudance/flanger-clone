@@ -1024,3 +1024,222 @@ document.addEventListener("turbolinks:load", function() {
 git add .
 git commit -m "add instrument form & new"
 git push origin uploader
+
+```
+```
+app/views/instruments/index.html.erb
+---
+<p id="notice"><%= notice %></p>
+
+<h1>Instruments</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Brand</th>
+      <th>Model</th>
+      <th>Description</th>
+      <th>Condition</th>
+      <th>Finish</th>
+      <th>Title</th>
+      <th>Price</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @instruments.each do |instrument| %>
+      <tr>
+        <td><%= instrument.brand %></td>
+        <td><%= instrument.model %></td>
+        <td><%= instrument.description %></td>
+        <td><%= instrument.condition %></td>
+        <td><%= instrument.finish %></td>
+        <td><%= instrument.title %></td>
+        <td><%= instrument.price %></td>
+        <td><%= link_to 'Show', instrument %></td>
+        <td><%= link_to 'Edit', edit_instrument_path(instrument) %></td>
+        <td><%= link_to 'Destroy', instrument, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Instrument', new_instrument_path %>
+---
+<% content_for :header do %>
+<section class="hero is-warning">
+  <div class="hero-body">
+    <div class="container">
+      <h1 class="title">
+        Browse the latest instruments on Flanger
+      </h1>
+    </div>
+  </div>
+</section>
+<% end %>
+
+<div class="instrument-index-grid pt4">
+  <% @instruments.each do |instrument| %>
+
+    <div class="instrument border-light">
+      <div class="instrument-thumb">
+      <%= link_to image_tag(instrument.image_url(:thumb)), instrument %>
+
+      <% if instrument.condition? %>
+        <div class="condition">
+          <span class="tag is-dark"><%= instrument.condition %></span>
+        </div>
+      <% end %>
+      </div>
+
+
+    <div class="pa3">
+
+      <h3 class="fw7 f4 title"><%= link_to instrument.title, instrument %></h3>
+
+      <p class="has-text-gray fg pt1">Sold by <%= instrument.user.name %></p>
+
+      <p class="f3 fw6 has-text-right pt2 price"><%= number_to_currency(instrument.price) %></p>
+
+      <% if instrument_author(instrument) %>
+         <%= link_to 'Edit', edit_instrument_path(instrument), class: "button is-small" %>
+         <%= link_to 'Delete', instrument, method: :delete, data: { confirm: "Are you sure ?" }, class: "button is-small" %>
+      <% end %>
+
+    </div>
+  </div>
+  <% end %>
+</div>
+---
+app/views/instruments/show.html.erb
+---
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Brand:</strong>
+  <%= @instrument.brand %>
+</p>
+
+<p>
+  <strong>Model:</strong>
+  <%= @instrument.model %>
+</p>
+
+<p>
+  <strong>Description:</strong>
+  <%= @instrument.description %>
+</p>
+
+<p>
+  <strong>Condition:</strong>
+  <%= @instrument.condition %>
+</p>
+
+<p>
+  <strong>Finish:</strong>
+  <%= @instrument.finish %>
+</p>
+
+<p>
+  <strong>Title:</strong>
+  <%= @instrument.title %>
+</p>
+
+<p>
+  <strong>Price:</strong>
+  <%= @instrument.price %>
+</p>
+
+<%= link_to 'Edit', edit_instrument_path(@instrument) %> |
+<%= link_to 'Back', instruments_path %>
+---
+<% content_for :body_class, 'bg-light' %>
+
+<section class="section instrument-show">
+  <div class="columns">
+    <div class="column is-8">
+      <h1 class="title is-2"><%= @instrument.title %></h1>
+
+      <ul class="pv1">
+        <% if @instrument.brand? %>
+        <li class="inline-block pr3"><%= @instrument.brand %></li>
+        <% end %>
+
+        <li class="inline-block pr3"><%= @instrument.model %></li>
+
+        <% if @instrument.condition? %>
+        <li class="inline-block pr3"><%= @instrument.condition %></li>
+        <% end %>
+      </ul>
+
+      <div class="feature-image">
+        <%= image_tag(@instrument.image_url(:default)) %>
+      </div>
+
+      <div class="content pa4 mt3 bg-white border-radius-3">
+
+      <h3 class="subtitle is-4">Description</h3>
+      <%= @instrument.description %>
+
+
+      <h3 class="subtitle is-4 pt5">Product Specs</h3>
+
+      <table class="table is-narrow">
+        <% if @instrument.condition %>
+        <tr>
+          <td class="has-text-weight-bold">Condition:</td>
+          <td><%= @instrument.condition %></td>
+        </tr>
+        <% end %>
+
+        <% if @instrument.finish %>
+          <tr>
+            <td class="has-text-weight-bold">Finish:</td>
+            <td><%= @instrument.finish %></td>
+          </tr>
+        <% end %>
+
+        <% if @instrument.brand %>
+          <tr>
+            <td class="has-text-weight-bold">Brand:</td>
+            <td><%= @instrument.brand %></td>
+          </tr>
+        <% end %>
+
+        <tr>
+          <td class="has-text-weight-bold">Model:</td>
+          <td><%= @instrument.model %></td>
+        </tr>
+      </table>
+    </div>
+    </div>
+    <div class="column is-3 is-offset-1">
+      <div class="bg-white pa4 border-radius-3">
+        <h4 class="title is-5 has-text-centered"><%= number_to_currency(@instrument.price) %></h4>
+        <p class="has-text-centered mb4">Sold by <%= @instrument.user.name %></p>
+        <%= button_to 'Add to cart', line_items_path(instrument_id: @instrument), class: 'button is-warning add-to-cart' %>
+      </div>
+    </div>
+  </div>
+
+  <% if instrument_author(@instrument) %>
+    <%= link_to 'Edit', edit_instrument_path(@instrument), class: 'button' %>
+  <% end %>
+</section>
+---
+app/helpers/instruments_helper.rb
+---
+module InstrumentsHelper
+
+  def instrument_author(instrument)
+    user_signed_in? && current_user.id == instrument.user_id
+  end
+
+end
+---
+```
+![image](https://ws3.sinaimg.cn/large/006tNc79ly1fq23oidipcj31kw0np1hr.jpg)
+![image](https://ws2.sinaimg.cn/large/006tNc79ly1fq23omp06qj31kw0l7af2.jpg)
