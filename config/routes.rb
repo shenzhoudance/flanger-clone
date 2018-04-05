@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
-  devise_for :users
-  root 'store#index'
+  resources :instruments
+  devise_for :users, conrollers: {
+    registrations: 'registrations'
+  }
+  root 'instruments#index'
 end
