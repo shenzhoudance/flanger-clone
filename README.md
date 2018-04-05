@@ -602,6 +602,425 @@ end
 ![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq1uxhkvp1j31kw09rq48.jpg)
 ```
 git add .
-git commit -m "add instruments root index "
+git commit -m "add instruments root index"
 git push origin scaffold
 ```
+# 添加图片上传功能
+```
+git checkout -b uploader
+rails generate uploader Image
+---
+app/uploaders/image_uploader.rb
+---
+include CarrierWave::MiniMagick
+
+version :thumb do
+   process resize_to_fit: [400, 300]
+end
+
+version :default do
+   process resize_to_fit: [800, 600]
+end
+
+def extension_whitelist
+   %w(jpg jpeg gif png)
+end
+
+```
+```
+rails g migration add_image_to_instruments image:string
+rake db:migrate
+```
+![image](https://ws4.sinaimg.cn/large/006tNc79gy1fq1vaak9ldj31hg0lk7ak.jpg)
+
+```
+app/models/instrument.rb
+---
+class Instrument < ApplicationRecord
+  mount_uploader :image, ImageUploader
+  serialize :image, JSON # If you use SQLite, add this line
+  belongs_to :user, optional: true
+
+  validates :title, :brand, :price, :model, presence: true
+  validates :description, length: { maximum: 1000, too_long: "%{count} characters is the maximum aloud. "}
+  validates :title, length: { maximum: 140, too_long: "%{count} characters is the maximum aloud. "}
+  validates :price, length: { maximum: 7 }
+
+  BRAND = %w{ Fender Gibson Epiphone ESP Martin Dean Taylor Jackson PRS  Ibanez Charvel Washburn }
+  FINISH = %w{ Black White Navy Blue Red Clear Satin Yellow Seafoam }
+  CONDITION = %w{ New Excellent Mint Used Fair Poor }
+
+end
+---
+app/models/user.rb
+---
+class User < ApplicationRecord
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :trackable, :validatable
+  has_many :instruments
+
+end
+
+app/controllers/instruments_controller.rb
+---
+class InstrumentsController < ApplicationController
+  before_action :set_instrument, only: [:show, :edit, :update, :destroy]
+
+  # GET /instruments
+  # GET /instruments.json
+  def index
+    @instruments = Instrument.all
+  end
+
+  # GET /instruments/1
+  # GET /instruments/1.json
+  def show
+  end
+
+  # GET /instruments/new
+  def new
+    @instrument = Instrument.new
+  end
+
+  # GET /instruments/1/edit
+  def edit
+  end
+
+  # POST /instruments
+  # POST /instruments.json
+  def create
+    @instrument = Instrument.new(instrument_params)
+
+    respond_to do |format|
+      if @instrument.save
+        format.html { redirect_to @instrument, notice: 'Instrument was successfully created.' }
+        format.json { render :show, status: :created, location: @instrument }
+      else
+        format.html { render :new }
+        format.json { render json: @instrument.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /instruments/1
+  # PATCH/PUT /instruments/1.json
+  def update
+    respond_to do |format|
+      if @instrument.update(instrument_params)
+        format.html { redirect_to @instrument, notice: 'Instrument was successfully updated.' }
+        format.json { render :show, status: :ok, location: @instrument }
+      else
+        format.html { render :edit }
+        format.json { render json: @instrument.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /instruments/1
+  # DELETE /instruments/1.json
+  def destroy
+    @instrument.destroy
+    respond_to do |format|
+      format.html { redirect_to instruments_url, notice: 'Instrument was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_instrument
+      @instrument = Instrument.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def instrument_params
+      params.require(:instrument).permit(:brand, :model, :description, :condition, :finish, :title, :price)
+    end
+end
+
+---
+class InstrumentsController < ApplicationController
+  before_action :set_instrument, only: [:show, :edit, :update, :destroy]
+  before_action :authenticate_user!, except: [:index, :show]
+
+  # GET /instruments
+  # GET /instruments.json
+  def index
+    @instruments = Instrument.all.order("created_at desc")
+  end
+
+  # GET /instruments/1
+  # GET /instruments/1.json
+  def show
+  end
+
+  # GET /instruments/new
+  def new
+    @instrument = current_user.instruments.build
+  end
+
+  # GET /instruments/1/edit
+  def edit
+  end
+
+  # POST /instruments
+  # POST /instruments.json
+  def create
+    @instrument = current_user.instruments.build(instrument_params)
+
+    respond_to do |format|
+      if @instrument.save
+        format.html { redirect_to @instrument, notice: 'Instrument was successfully created.' }
+        format.json { render :show, status: :created, location: @instrument }
+      else
+        format.html { render :new }
+        format.json { render json: @instrument.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /instruments/1
+  # PATCH/PUT /instruments/1.json
+  def update
+    respond_to do |format|
+      if @instrument.update(instrument_params)
+        format.html { redirect_to @instrument, notice: 'Instrument was successfully updated.' }
+        format.json { render :show, status: :ok, location: @instrument }
+      else
+        format.html { render :edit }
+        format.json { render json: @instrument.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /instruments/1
+  # DELETE /instruments/1.json
+  def destroy
+    @instrument.destroy
+    respond_to do |format|
+      format.html { redirect_to instruments_url, notice: 'Instrument was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_instrument
+      @instrument = Instrument.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def instrument_params
+      params.require(:instrument).permit(:brand, :model, :description, :condition, :finish, :title, :price, :image)
+    end
+end
+---
+```
+#修改表单样式
+```
+app/views/instruments/_form.html.erb
+---
+
+<%= simple_form_for(@instrument) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :brand %>
+    <%= f.input :model %>
+    <%= f.input :description %>
+    <%= f.input :condition %>
+    <%= f.input :finish %>
+    <%= f.input :title %>
+    <%= f.input :price %>
+  </div>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>
+---
+<div class="columns">
+  <div class="column is-8 is-centered">
+
+    <%= simple_form_for @instrument, html: { multipart: true } do |f| %>
+      <%= f.error_notification %>
+
+        <div class="columns">
+
+          <div class="field column is-9">
+            <div class="control">
+              <%= f.input :title , required: true, input_html: { class: "input"}, wrapper: false, label_html: { class:"label" } %>
+            </div>
+          </div>
+
+          <div class="field column">
+            <div class="control">
+              <%= f.input :price, required: true, input_html: { class:"input", maxlength: 7  }, wrapper: false, label_html: { class:"label" } %>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <%= f.input :model, required: true, input_html: { class:"input" }, wrapper: false, label_html: { class:"label" } %>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="control">
+            <%= f.input :description, required: true, input_html: { class:"textarea" }, wrapper: false, label_html: { class:"label" } %>
+          </div>
+        </div>
+
+        <div class="columns">
+          <div class="field column is-4">
+            <div class="control">
+              <label class="label">Brand</label>
+              <div class="control has-icons-left">
+                <span class="select">
+                  <%= f.input_field :brand, collection: Instrument::BRAND, prompt: "Select brand" %>
+                </span>
+                <span class="icon is-small is-left">
+                  <i class="fa fa-tag"></i>
+                </span>
+              </div>
+            </div>
+           </div>
+
+          <div class="field column is-4">
+            <div class="control">
+              <label class="label">Finish</label>
+              <div class="control has-icons-left">
+                <span class="select">
+                  <%= f.input_field :finish, collection: Instrument::FINISH, prompt: "Select finish" %>
+                </span>
+                <span class="icon is-small is-left">
+                  <i class="fa fa-paint-brush"></i>
+                </span>
+              </div>
+            </div>
+           </div>
+
+          <div class="field column is-4">
+            <div class="control">
+              <label class="label">Condition</label>
+              <div class="control has-icons-left">
+                <span class="select">
+                  <%= f.input_field :condition, collection: Instrument::CONDITION, prompt: "Select condition" %>
+                </span>
+                <span class="icon is-small is-left">
+                  <i class="fa fa-paint-brush"></i>
+                </span>
+              </div>
+            </div>
+           </div>
+         </div>
+
+        <div class="field">
+          <div class="control">
+            <label class="label">Add images</label>
+              <div class="file">
+              <label class="file-label">
+                <%= f.input :image, as: :file, input_html: { class:"file-input instrument-image" }, label: false, wrapper: false %>
+                  <span class="file-cta">
+                    <span class="file-icon"><i class="fa fa-upload"></i></span>
+                    <span class="file-label">Choose a file…</span>
+                  </span>
+              </label>
+              </div>
+            </div>
+          </div>
+          <output id="list"></output>
+        <hr />
+
+        <div class="field is-grouped">
+          <div class="control">
+            <%= f.button :submit, class: 'button is-warning' %>
+            <%= link_to 'Cancel', instruments_path, class:'button is-light' %>
+          </div>
+        </div>
+
+      <% end %>
+  </div>
+</div>
+---
+```
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq1vqkftt3j31kw0u378t.jpg)
+
+```
+app/views/instruments/new.html.erb
+---
+<h1>New Instrument</h1>
+
+<%= render 'form', instrument: @instrument %>
+
+<%= link_to 'Back', instruments_path %>
+
+---
+<% content_for :header do %>
+<section class="hero is-warning">
+  <div class="hero-body">
+    <div class="container">
+      <h1 class="title">
+        Sell an Instrument
+      </h1>
+    </div>
+  </div>
+</section>
+<% end %>
+
+<div class="pv4">
+  <%= render 'form', instrument: @instrument %>
+</div>
+---
+```
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq1vtch7ddj31kw0u0jvg.jpg)
+
+```
+app/assets/javascripts/instruments.js
+---
+document.addEventListener("turbolinks:load", function() {
+
+  var instrumentImage = document.querySelector('.instrument-image');
+
+  function handleFileSelect(evt) {
+    var files = evt.target.files; // FileList object
+
+    // Loop through the FileList and render image files as thumbnails.
+    for (var i = 0, f; f = files[i]; i++) {
+
+      // Only process image files.
+      if (!f.type.match('image.*')) {
+        continue;
+      }
+
+      var reader = new FileReader();
+
+      // Closure to capture the file information.
+      reader.onload = (function(theFile) {
+        return function(e) {
+          // Render thumbnail.
+          var span = document.createElement('span');
+          span.innerHTML = ['<img class="instrument-preview-thumb" src="', e.target.result,
+            '" title="', escape(theFile.name), '"/>'
+          ].join('');
+          document.getElementById('list').insertBefore(span, null);
+        };
+      })(f);
+      // Read in the image file as a data URL.
+      reader.readAsDataURL(f);
+    }
+  }
+
+  if (instrumentImage) {
+    this.addEventListener('change', handleFileSelect, false);
+  }
+
+});
+---
+```
+```
+git add .
+git commit -m "add instrument form & new"
+git push origin uploader
