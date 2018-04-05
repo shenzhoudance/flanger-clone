@@ -1249,3 +1249,9 @@ app/views/instruments/show.html.erb
 ![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq21ubkqslj31kw0crwgd.jpg)
 ![image](https://ws2.sinaimg.cn/large/006tNc79gy1fq21u3i561j31kw0k2teg.jpg)
 ![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq21v3ng2rj31kw0nf4qp.jpg)
+
+```
+git add .
+git commit -m "add index show"
+git push origin index
+```
