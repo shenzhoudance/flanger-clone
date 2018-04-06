@@ -1256,3 +1256,509 @@ git add .
 git commit -m "add index show"
 git push origin index
 ```
+# 构建购物车
+```
+git checkout -b cart2
+rails g scaffold Cart --no-stylesheets --no-javascripts
+rake db:migrate
+rails g scaffold LineItem instrument:references cart:belongs_to
+rake db:migrate
+```
+```
+app/models/cart.rb
+---
+class Cart < ApplicationRecord
+  has_many :line_items, dependent: :destroy
+end
+---
+app/models/instrument.rb
+---
+class Instrument < ApplicationRecord
+  mount_uploader :image, ImageUploader
+  has_many :line_items
+  serialize :image, JSON # If you use SQLite, add this line
+  belongs_to :user, optional: true
+
+  validates :title, :brand, :price, :model, presence: true
+  validates :description, length: { maximum: 1000, too_long: "%{count} characters is the maximum aloud. "}
+  validates :title, length: { maximum: 140, too_long: "%{count} characters is the maximum aloud. "}
+  validates :price, length: { maximum: 7 }
+
+  BRAND = %w{ Fender Gibson Epiphone ESP Martin Dean Taylor Jackson PRS  Ibanez Charvel Washburn }
+  FINISH = %w{ Black White Navy Blue Red Clear Satin Yellow Seafoam }
+  CONDITION = %w{ New Excellent Mint Used Fair Poor }
+
+end
+---
+app/models/concerns/current_cart.rb
+---
+module CurrentCart
+
+  private
+
+  def set_cart
+    @cart = Cart.find(session[:cart_id])
+  rescue ActiveRecord::RecordNotFound
+    @cart = Cart.create
+    session[:cart_id] = @cart.id
+  end
+end
+---
+app/controllers/line_items_controller.rb
+---
+include CurrentCart
+before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+before_action :set_cart, only: [:create]
+
+
+---
+def create
+  @line_item = LineItem.new(line_item_params)
+
+  respond_to do |format|
+    if @line_item.save
+      format.html { redirect_to @line_item, notice: 'Line item was successfully created.' }
+      format.json { render :show, status: :created, location: @line_item }
+    else
+      format.html { render :new }
+      format.json { render json: @line_item.errors, status: :unprocessable_entity }
+    end
+  end
+end
+---
+
+def create
+  instrument = Instrument.find(params[:instrument_id])
+  @line_item = @cart.add_instrument(instrument)
+
+  respond_to do |format|
+    if @line_item.save
+      format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+      format.json { render :show, status: :created, location: @line_item }
+    else
+      format.html { render :new }
+      format.json { render json: @line_item.errors, status: :unprocessable_entity }
+    end
+  end
+end
+---
+
+app/models/cart.rb
+---
+class Cart < ApplicationRecord
+  has_many :line_items, dependent: :destroy
+
+  def add_instrument(instrument)
+    current_item = line_items.find_by(instrument_id: instrument.id)
+
+    if current_item
+      current_item.increment(:quantity)
+    else
+      current_item = line_items.build(instrument_id: instrument.id)
+    end
+    current_item
+  end
+
+  def total_price
+    line_items.to_a.sum { |item| item.total_price }
+  end
+
+end
+---
+rails g migration add_quantity_to_line_items
+db/migrate/20180406023947_add_quantity_to_line_items.rb
+---
+class AddQuantityToLineItems < ActiveRecord::Migration[5.1]
+  def change
+    add_column :line_items, :quantity, :integer, default: 1
+  end
+end
+---
+rake db:migrate
+
+---
+
+app/controllers/carts_controller.rb
+---
+class CartsController < ApplicationController
+  before_action :set_cart, only: [:show, :edit, :update, :destroy]
+
+  # GET /carts
+  # GET /carts.json
+  def index
+    @carts = Cart.all
+  end
+
+  # GET /carts/1
+  # GET /carts/1.json
+  def show
+  end
+
+  # GET /carts/new
+  def new
+    @cart = Cart.new
+  end
+
+  # GET /carts/1/edit
+  def edit
+  end
+
+  # POST /carts
+  # POST /carts.json
+  def create
+    @cart = Cart.new(cart_params)
+
+    respond_to do |format|
+      if @cart.save
+        format.html { redirect_to @cart, notice: 'Cart was successfully created.' }
+        format.json { render :show, status: :created, location: @cart }
+      else
+        format.html { render :new }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /carts/1
+  # PATCH/PUT /carts/1.json
+  def update
+    respond_to do |format|
+      if @cart.update(cart_params)
+        format.html { redirect_to @cart, notice: 'Cart was successfully updated.' }
+        format.json { render :show, status: :ok, location: @cart }
+      else
+        format.html { render :edit }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /carts/1
+  # DELETE /carts/1.json
+  def destroy
+    @cart.destroy
+    respond_to do |format|
+      format.html { redirect_to carts_url, notice: 'Cart was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_cart
+      @cart = Cart.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def cart_params
+      params.fetch(:cart, {})
+    end
+end
+---
+class CartsController < ApplicationController
+  rescue_from ActiveRecord::RecordNotFound, with: :invalid_cart
+  before_action :set_cart, only: [:show, :edit, :update, :destroy]
+
+  # GET /carts
+  # GET /carts.json
+  def index
+    @carts = Cart.all
+  end
+
+  # GET /carts/1
+  # GET /carts/1.json
+  def show
+  end
+
+  # GET /carts/new
+  def new
+    @cart = Cart.new
+  end
+
+  # GET /carts/1/edit
+  def edit
+  end
+
+  # POST /carts
+  # POST /carts.json
+  def create
+    @cart = Cart.new(cart_params)
+
+    respond_to do |format|
+      if @cart.save
+        format.html { redirect_to @cart, notice: 'Cart was successfully created.' }
+        format.json { render :show, status: :created, location: @cart }
+      else
+        format.html { render :new }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /carts/1
+  # PATCH/PUT /carts/1.json
+  def update
+    respond_to do |format|
+      if @cart.update(cart_params)
+        format.html { redirect_to @cart, notice: 'Cart was successfully updated.' }
+        format.json { render :show, status: :ok, location: @cart }
+      else
+        format.html { render :edit }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /carts/1
+  # DELETE /carts/1.json
+  def destroy
+    @cart.destroy if @cart.id == session[:cart_id]
+    session[:cart_id] = nil
+    respond_to do |format|
+      format.html { redirect_to root_path, notice: 'Cart was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_cart
+      @cart = Cart.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def cart_params
+      params.fetch(:cart, {})
+    end
+
+    def invalid_cart
+      logger.error "Attempt to access invalid cart #{params[:id]}"
+      redirect_to root_path, notice: "That cart doesn't exist"
+    end
+end
+---
+app/controllers/application_controller.rb
+---
+
+class ApplicationController < ActionController::Base
+  protect_from_forgery with: :exception
+  include CurrentCart
+  before_action :set_cart
+end
+---
+app/controllers/line_items_controller.rb
+---
+class LineItemsController < ApplicationController
+  include CurrentCart
+  before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+  before_action :set_cart, only: [:create]
+
+  # GET /line_items
+  # GET /line_items.json
+  def index
+    @line_items = LineItem.all
+  end
+
+  # GET /line_items/1
+  # GET /line_items/1.json
+  def show
+  end
+
+  # GET /line_items/new
+  def new
+    @line_item = LineItem.new
+  end
+
+  # GET /line_items/1/edit
+  def edit
+  end
+
+  # POST /line_items
+  # POST /line_items.json
+  def create
+    instrument = Instrument.find(params[:instrument_id])
+    @line_item = @cart.add_instrument(instrument)
+
+    respond_to do |format|
+      if @line_item.save
+        format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+        format.json { render :show, status: :created, location: @line_item }
+      else
+        format.html { render :new }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+end
+
+  # PATCH/PUT /line_items/1
+  # PATCH/PUT /line_items/1.json
+  def update
+    respond_to do |format|
+      if @line_item.update(line_item_params)
+        format.html { redirect_to @line_item, notice: 'Line item was successfully updated.' }
+        format.json { render :show, status: :ok, location: @line_item }
+      else
+        format.html { render :edit }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /line_items/1
+  # DELETE /line_items/1.json
+  def destroy
+    @line_item.destroy
+    respond_to do |format|
+      format.html { redirect_to line_items_url, notice: 'Line item was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_line_item
+      @line_item = LineItem.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def line_item_params
+      params.require(:line_item).permit(:instrument_id, :cart_id)
+    end
+end
+
+---
+class LineItemsController < ApplicationController
+  include CurrentCart
+  before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+  before_action :set_cart, only: [:create]
+
+  # GET /line_items
+  # GET /line_items.json
+  def index
+    @line_items = LineItem.all
+  end
+
+  # GET /line_items/1
+  # GET /line_items/1.json
+  def show
+  end
+
+  # GET /line_items/new
+  def new
+    @line_item = LineItem.new
+  end
+
+  # GET /line_items/1/edit
+  def edit
+  end
+
+  # POST /line_items
+  # POST /line_items.json
+  def create
+    instrument = Instrument.find(params[:instrument_id])
+    @line_item = @cart.add_instrument(instrument)
+
+    respond_to do |format|
+      if @line_item.save
+        format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+        format.json { render :show, status: :created, location: @line_item }
+      else
+        format.html { render :new }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /line_items/1
+  # PATCH/PUT /line_items/1.json
+  def update
+    respond_to do |format|
+      if @line_item.update(line_item_params)
+        format.html { redirect_to @line_item, notice: 'Line item was successfully updated.' }
+        format.json { render :show, status: :ok, location: @line_item }
+      else
+        format.html { render :edit }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /line_items/1
+  # DELETE /line_items/1.json
+  def destroy
+    @cart = Cart.find(session[:cart_id])
+    @line_item.destroy
+    respond_to do |format|
+      format.html { redirect_to cart_path(@cart), notice: 'Item successfully removed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_line_item
+      @line_item = LineItem.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def line_item_params
+      params.require(:line_item).permit(:instrument_id)
+    end
+end
+---
+app/models/instrument.rb
+---
+class Instrument < ApplicationRecord
+  before_destroy :not_referenced_by_any_line_item
+  belongs_to :user, optional: true
+  has_many :line_items
+
+  mount_uploader :image, ImageUploader
+  serialize :image, JSON # If you use SQLite, add this line
+
+  validates :title, :brand, :price, :model, presence: true
+  validates :description, length: { maximum: 1000, too_long: "%{count} characters is the maximum aloud. "}
+  validates :title, length: { maximum: 140, too_long: "%{count} characters is the maximum aloud. "}
+  validates :price, length: { maximum: 7 }
+
+  BRAND = %w{ Fender Gibson Epiphone ESP Martin Dean Taylor Jackson PRS  Ibanez Charvel Washburn }
+  FINISH = %w{ Black White Navy Blue Red Clear Satin Yellow Seafoam }
+  CONDITION = %w{ New Excellent Mint Used Fair Poor }
+
+  private
+
+  def not_refereced_by_any_line_item
+    unless line_items.empty?
+      errors.add(:base, "Line items present")
+      throw :abort
+    end
+  end
+
+end
+---
+app/views/instruments/show.html.erb
+---
+<div class="column is-3 is-offset-1">
+  <div class="bg-white pa4 border-radius-3">
+    <h4 class="title is-5 has-text-centered"><%= number_to_currency(@instrument.price) %></h4>
+    <p class="has-text-centered mb4">Sold by <%#= @instrument.user.name %></p>
+    <%= button_to 'Add to cart', line_items_path(instrument_id: @instrument), class: 'button is-warning add-to-cart' %>
+  </div>
+</div>
+</div>
+---
+```
+![image](https://ws4.sinaimg.cn/large/006tNc79gy1fq2r7mhgwkj31kw0ie0uq.jpg)
+
+```
+app/models/line_item.rb
+---
+class LineItem < ApplicationRecord
+  belongs_to :instrument
+  belongs_to :cart
+
+  def total_price
+    instrument.price.to_i * quantity.to_i
+  end
+end
+---
