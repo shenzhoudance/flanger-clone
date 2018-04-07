@@ -8,10 +8,9 @@
 
 user = User.new(
   id: 2,
-  name: "Andy Leverenz",
-  email: "andy@example.com",
-  password: "password",
-  password_confirmation: "password"
+  email: "xiaowei@qq.com",
+  password: "123456",
+  password_confirmation: "123456"
 )
 user.save!
 
@@ -23,7 +22,6 @@ Instrument.create!([{
   condition: "Excellent",
   finish: "Red",
   price: "2999",
-  image: Rails.root.join("app/assets/images/instrument1.jpg").open,
   user_id: user.id
 },
 {

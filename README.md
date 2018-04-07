@@ -1,5 +1,20 @@
 # Let's Buld: With Ruby on Rails - eCommerce Music Shop
 
+# 最后的效果
+![image](https://ws2.sinaimg.cn/large/006tNc79gy1fq3wj6spgqj31kw0mi441.jpg)
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3wj1m8y6j31kw0p3kga.jpg)
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq3wjc83o9j31kw0pj40t.jpg)
+
+# 如何使用这个案例
+```
+git clone https://github.com/shenzhoudance/flanger-clone.git
+cd flanger-clone
+bundle install
+rake db：migrate
+rake db：seed
+Rails server
+```
+
 ```
 cd workspace
 rails new flanger
@@ -2002,3 +2017,32 @@ The nitro-cellulose lacquer finish and our proprietary antiquing process make ea
   user_id: user.id
 }])
 ---
+app/assets/javascripts/global.js
+---
+document.addEventListener("turbolinks:load", function() {
+
+  var notification = document.querySelector('.global-notification');
+
+  if(notification) {
+    window.setTimeout(function() {
+      notification.style.display = "none";
+    }, 4000);
+  }
+
+});
+---
+```
+# 如何使用这个案例
+```
+git clone https://github.com/shenzhoudance/flanger-clone.git
+cd flanger-clone
+bundle install
+rake db：migrate
+rake db：seed
+Rails server
+```
+
+# 最后的效果
+![image](https://ws2.sinaimg.cn/large/006tNc79gy1fq3wj6spgqj31kw0mi441.jpg)
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3wj1m8y6j31kw0p3kga.jpg)
+![image](https://ws3.sinaimg.cn/large/006tNc79gy1fq3wjc83o9j31kw0pj40t.jpg)
