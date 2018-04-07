@@ -1256,3 +1256,749 @@ git add .
 git commit -m "add index show"
 git push origin index
 ```
+# 构建购物车
+```
+git checkout -b cart2
+rails g scaffold Cart --no-stylesheets --no-javascripts
+rake db:migrate
+rails g scaffold LineItem instrument:references cart:belongs_to
+rake db:migrate
+```
+```
+app/models/cart.rb
+---
+class Cart < ApplicationRecord
+  has_many :line_items, dependent: :destroy
+end
+---
+app/models/instrument.rb
+---
+class Instrument < ApplicationRecord
+  mount_uploader :image, ImageUploader
+  has_many :line_items
+  serialize :image, JSON # If you use SQLite, add this line
+  belongs_to :user, optional: true
+
+  validates :title, :brand, :price, :model, presence: true
+  validates :description, length: { maximum: 1000, too_long: "%{count} characters is the maximum aloud. "}
+  validates :title, length: { maximum: 140, too_long: "%{count} characters is the maximum aloud. "}
+  validates :price, length: { maximum: 7 }
+
+  BRAND = %w{ Fender Gibson Epiphone ESP Martin Dean Taylor Jackson PRS  Ibanez Charvel Washburn }
+  FINISH = %w{ Black White Navy Blue Red Clear Satin Yellow Seafoam }
+  CONDITION = %w{ New Excellent Mint Used Fair Poor }
+
+end
+---
+app/models/concerns/current_cart.rb
+---
+module CurrentCart
+
+  private
+
+  def set_cart
+    @cart = Cart.find(session[:cart_id])
+  rescue ActiveRecord::RecordNotFound
+    @cart = Cart.create
+    session[:cart_id] = @cart.id
+  end
+end
+---
+app/controllers/line_items_controller.rb
+---
+include CurrentCart
+before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+before_action :set_cart, only: [:create]
+
+
+---
+def create
+  @line_item = LineItem.new(line_item_params)
+
+  respond_to do |format|
+    if @line_item.save
+      format.html { redirect_to @line_item, notice: 'Line item was successfully created.' }
+      format.json { render :show, status: :created, location: @line_item }
+    else
+      format.html { render :new }
+      format.json { render json: @line_item.errors, status: :unprocessable_entity }
+    end
+  end
+end
+---
+
+def create
+  instrument = Instrument.find(params[:instrument_id])
+  @line_item = @cart.add_instrument(instrument)
+
+  respond_to do |format|
+    if @line_item.save
+      format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+      format.json { render :show, status: :created, location: @line_item }
+    else
+      format.html { render :new }
+      format.json { render json: @line_item.errors, status: :unprocessable_entity }
+    end
+  end
+end
+---
+
+app/models/cart.rb
+---
+class Cart < ApplicationRecord
+  has_many :line_items, dependent: :destroy
+
+  def add_instrument(instrument)
+    current_item = line_items.find_by(instrument_id: instrument.id)
+
+    if current_item
+      current_item.increment(:quantity)
+    else
+      current_item = line_items.build(instrument_id: instrument.id)
+    end
+    current_item
+  end
+
+  def total_price
+    line_items.to_a.sum { |item| item.total_price }
+  end
+
+end
+---
+rails g migration add_quantity_to_line_items
+db/migrate/20180406023947_add_quantity_to_line_items.rb
+---
+class AddQuantityToLineItems < ActiveRecord::Migration[5.1]
+  def change
+    add_column :line_items, :quantity, :integer, default: 1
+  end
+end
+---
+rake db:migrate
+
+---
+
+app/controllers/carts_controller.rb
+---
+class CartsController < ApplicationController
+  before_action :set_cart, only: [:show, :edit, :update, :destroy]
+
+  # GET /carts
+  # GET /carts.json
+  def index
+    @carts = Cart.all
+  end
+
+  # GET /carts/1
+  # GET /carts/1.json
+  def show
+  end
+
+  # GET /carts/new
+  def new
+    @cart = Cart.new
+  end
+
+  # GET /carts/1/edit
+  def edit
+  end
+
+  # POST /carts
+  # POST /carts.json
+  def create
+    @cart = Cart.new(cart_params)
+
+    respond_to do |format|
+      if @cart.save
+        format.html { redirect_to @cart, notice: 'Cart was successfully created.' }
+        format.json { render :show, status: :created, location: @cart }
+      else
+        format.html { render :new }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /carts/1
+  # PATCH/PUT /carts/1.json
+  def update
+    respond_to do |format|
+      if @cart.update(cart_params)
+        format.html { redirect_to @cart, notice: 'Cart was successfully updated.' }
+        format.json { render :show, status: :ok, location: @cart }
+      else
+        format.html { render :edit }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /carts/1
+  # DELETE /carts/1.json
+  def destroy
+    @cart.destroy
+    respond_to do |format|
+      format.html { redirect_to carts_url, notice: 'Cart was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_cart
+      @cart = Cart.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def cart_params
+      params.fetch(:cart, {})
+    end
+end
+---
+class CartsController < ApplicationController
+  rescue_from ActiveRecord::RecordNotFound, with: :invalid_cart
+  before_action :set_cart, only: [:show, :edit, :update, :destroy]
+
+  # GET /carts
+  # GET /carts.json
+  def index
+    @carts = Cart.all
+  end
+
+  # GET /carts/1
+  # GET /carts/1.json
+  def show
+  end
+
+  # GET /carts/new
+  def new
+    @cart = Cart.new
+  end
+
+  # GET /carts/1/edit
+  def edit
+  end
+
+  # POST /carts
+  # POST /carts.json
+  def create
+    @cart = Cart.new(cart_params)
+
+    respond_to do |format|
+      if @cart.save
+        format.html { redirect_to @cart, notice: 'Cart was successfully created.' }
+        format.json { render :show, status: :created, location: @cart }
+      else
+        format.html { render :new }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /carts/1
+  # PATCH/PUT /carts/1.json
+  def update
+    respond_to do |format|
+      if @cart.update(cart_params)
+        format.html { redirect_to @cart, notice: 'Cart was successfully updated.' }
+        format.json { render :show, status: :ok, location: @cart }
+      else
+        format.html { render :edit }
+        format.json { render json: @cart.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /carts/1
+  # DELETE /carts/1.json
+  def destroy
+    @cart.destroy if @cart.id == session[:cart_id]
+    session[:cart_id] = nil
+    respond_to do |format|
+      format.html { redirect_to root_path, notice: 'Cart was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_cart
+      @cart = Cart.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def cart_params
+      params.fetch(:cart, {})
+    end
+
+    def invalid_cart
+      logger.error "Attempt to access invalid cart #{params[:id]}"
+      redirect_to root_path, notice: "That cart doesn't exist"
+    end
+end
+---
+app/controllers/application_controller.rb
+---
+
+class ApplicationController < ActionController::Base
+  protect_from_forgery with: :exception
+  include CurrentCart
+  before_action :set_cart
+end
+---
+app/controllers/line_items_controller.rb
+---
+class LineItemsController < ApplicationController
+  include CurrentCart
+  before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+  before_action :set_cart, only: [:create]
+
+  # GET /line_items
+  # GET /line_items.json
+  def index
+    @line_items = LineItem.all
+  end
+
+  # GET /line_items/1
+  # GET /line_items/1.json
+  def show
+  end
+
+  # GET /line_items/new
+  def new
+    @line_item = LineItem.new
+  end
+
+  # GET /line_items/1/edit
+  def edit
+  end
+
+  # POST /line_items
+  # POST /line_items.json
+  def create
+    instrument = Instrument.find(params[:instrument_id])
+    @line_item = @cart.add_instrument(instrument)
+
+    respond_to do |format|
+      if @line_item.save
+        format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+        format.json { render :show, status: :created, location: @line_item }
+      else
+        format.html { render :new }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+end
+
+  # PATCH/PUT /line_items/1
+  # PATCH/PUT /line_items/1.json
+  def update
+    respond_to do |format|
+      if @line_item.update(line_item_params)
+        format.html { redirect_to @line_item, notice: 'Line item was successfully updated.' }
+        format.json { render :show, status: :ok, location: @line_item }
+      else
+        format.html { render :edit }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /line_items/1
+  # DELETE /line_items/1.json
+  def destroy
+    @line_item.destroy
+    respond_to do |format|
+      format.html { redirect_to line_items_url, notice: 'Line item was successfully destroyed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_line_item
+      @line_item = LineItem.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def line_item_params
+      params.require(:line_item).permit(:instrument_id, :cart_id)
+    end
+end
+
+---
+class LineItemsController < ApplicationController
+  include CurrentCart
+  before_action :set_line_item, only: [:show, :edit, :update, :destroy]
+  before_action :set_cart, only: [:create]
+
+  # GET /line_items
+  # GET /line_items.json
+  def index
+    @line_items = LineItem.all
+  end
+
+  # GET /line_items/1
+  # GET /line_items/1.json
+  def show
+  end
+
+  # GET /line_items/new
+  def new
+    @line_item = LineItem.new
+  end
+
+  # GET /line_items/1/edit
+  def edit
+  end
+
+  # POST /line_items
+  # POST /line_items.json
+  def create
+    instrument = Instrument.find(params[:instrument_id])
+    @line_item = @cart.add_instrument(instrument)
+
+    respond_to do |format|
+      if @line_item.save
+        format.html { redirect_to @line_item.cart, notice: 'Item added to cart.' }
+        format.json { render :show, status: :created, location: @line_item }
+      else
+        format.html { render :new }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # PATCH/PUT /line_items/1
+  # PATCH/PUT /line_items/1.json
+  def update
+    respond_to do |format|
+      if @line_item.update(line_item_params)
+        format.html { redirect_to @line_item, notice: 'Line item was successfully updated.' }
+        format.json { render :show, status: :ok, location: @line_item }
+      else
+        format.html { render :edit }
+        format.json { render json: @line_item.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # DELETE /line_items/1
+  # DELETE /line_items/1.json
+  def destroy
+    @cart = Cart.find(session[:cart_id])
+    @line_item.destroy
+    respond_to do |format|
+      format.html { redirect_to cart_path(@cart), notice: 'Item successfully removed.' }
+      format.json { head :no_content }
+    end
+  end
+
+  private
+    # Use callbacks to share common setup or constraints between actions.
+    def set_line_item
+      @line_item = LineItem.find(params[:id])
+    end
+
+    # Never trust parameters from the scary internet, only allow the white list through.
+    def line_item_params
+      params.require(:line_item).permit(:instrument_id)
+    end
+end
+---
+app/models/instrument.rb
+---
+class Instrument < ApplicationRecord
+  before_destroy :not_referenced_by_any_line_item
+  belongs_to :user, optional: true
+  has_many :line_items
+
+  mount_uploader :image, ImageUploader
+  serialize :image, JSON # If you use SQLite, add this line
+
+  validates :title, :brand, :price, :model, presence: true
+  validates :description, length: { maximum: 1000, too_long: "%{count} characters is the maximum aloud. "}
+  validates :title, length: { maximum: 140, too_long: "%{count} characters is the maximum aloud. "}
+  validates :price, length: { maximum: 7 }
+
+  BRAND = %w{ Fender Gibson Epiphone ESP Martin Dean Taylor Jackson PRS  Ibanez Charvel Washburn }
+  FINISH = %w{ Black White Navy Blue Red Clear Satin Yellow Seafoam }
+  CONDITION = %w{ New Excellent Mint Used Fair Poor }
+
+  private
+
+  def not_refereced_by_any_line_item
+    unless line_items.empty?
+      errors.add(:base, "Line items present")
+      throw :abort
+    end
+  end
+
+end
+---
+app/views/instruments/show.html.erb
+---
+<div class="column is-3 is-offset-1">
+  <div class="bg-white pa4 border-radius-3">
+    <h4 class="title is-5 has-text-centered"><%= number_to_currency(@instrument.price) %></h4>
+    <p class="has-text-centered mb4">Sold by <%#= @instrument.user.name %></p>
+    <%= button_to 'Add to cart', line_items_path(instrument_id: @instrument), class: 'button is-warning add-to-cart' %>
+  </div>
+</div>
+</div>
+---
+```
+![image](https://ws4.sinaimg.cn/large/006tNc79gy1fq2r7mhgwkj31kw0ie0uq.jpg)
+
+```
+app/models/line_item.rb
+---
+class LineItem < ApplicationRecord
+  belongs_to :instrument
+  belongs_to :cart
+
+  def total_price
+    instrument.price.to_i * quantity.to_i
+  end
+end
+---
+```
+# 修改 cart 的样式
+```
+app/views/carts/show.html.erb
+---
+<p id="notice"><%= notice %></p>
+
+<%= link_to 'Edit', edit_cart_path(@cart) %> |
+<%= link_to 'Back', carts_path %>
+---
+<div class="keep-shopping pv1 mt4 has-text-right">
+  <%= link_to 'Keep Shopping', instruments_path, class: 'button is-warning' %>
+</div>
+<hr />
+<section class="section">
+  <%= render(@cart.line_items) %>
+
+  <div class="columns">
+    <div class="column">
+      <%= button_to 'Empty Cart', @cart, method: :delete, data: { confirm: "Are you sure? " }, class: "button is-danger" %>
+    </div>
+    <div class="column total has-text-right">
+      <h4 class="title is-4">
+        <span class="f5 has-text-grey">Total:</span> <%= number_to_currency(@cart.total_price) %>
+      </h4>
+    </div>
+  </div>
+</section>
+---
+app/views/line_items/_line_item.html.erb
+---
+<div class="columns align-items-center">
+  <div class="column is-1">
+    <%= line_item.quantity %>
+  </div>
+  <div class="column is-2">
+    <figure class="is-128x128 image">
+      <%= image_tag(line_item.instrument.image_url(:thumb)) %>
+    </figure>
+  </div>
+  <div class="column is-9">
+    <strong><%= line_item.instrument.title %></strong>
+    <div class="columns align-items-center">
+      <div class="content column is-9">
+        <%= truncate(line_item.instrument.description, length: 140) %>
+      </div>
+      <div class="column is-3 has-text-right">
+        <strong class="f4"><%= number_to_currency(line_item.total_price) %></strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="has-text-right">
+  <%= link_to 'Remove Item', line_item, method: :delete, data: { confirm: "Are you sure? " }, class: "button is-small mb4" %>
+</div>
+
+<hr/ >
+---
+```
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3vcwzbalj31kw09t0tl.jpg)
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3vs845g9j31kw0pj40t.jpg)
+
+```
+app/views/layouts/application.html.erb
+---
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flanger</title>
+    <%= csrf_meta_tags %>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <%= stylesheet_link_tag 'https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' %>
+    <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application' %>
+  </head>
+
+  <body class="<%= yield (:body_class) %>">
+    <% if flash[:notice] %>
+      <div class="notification is-success global-notification">
+        <p class="notice"><%= notice %></p>
+      </div>
+    <% end %>
+    <% if flash[:alert] %>
+    <div class="notification is-danger global-notification">
+      <p class="alert"><%= alert %></p>
+    </div>
+    <% end %>
+     <nav class="navbar is-warning" role="navigation" aria-label="main navigation">
+      <div class="navbar-brand">
+        <%= link_to root_path, class:"navbar-item" do %>
+          <h1 class="title is-5">Flanger</h1>
+        <% end  %>
+      <div class="navbar-burger burger" data-target="navbar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+      <div id="navbar" class="navbar-menu">
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <div class="field is-grouped">
+
+            <%# if cart_has_items %>
+              <%#= link_to cart_path(@cart), class:"navbar-item button is-warning" do %>
+          <!--    <span class="icon is-small">
+                <i class="fa fa-shopping-cart"></i>
+              </span>
+              <span>Cart
+                <%#= cart_count_over_one %>
+              </span> -->
+              <%# end %>
+            <%# end %>
+
+            <% if user_signed_in? %>
+              <%= link_to 'Sell', new_instrument_path, class: "navbar-item button is-dark" %>
+
+              <div class="navbar-item has-dropdown is-hoverable">
+                <%= link_to 'Account', edit_user_registration_path, class: "navbar-link" %>
+                <div class="navbar-dropdown is-right">
+                  <%= link_to current_user.name, edit_user_registration_path, class:"navbar-item" %>
+                  <%= link_to "Log Out", destroy_user_session_path, method: :delete, class:"navbar-item" %>
+                </div>
+              </div>
+            <% else %>
+
+            <%= link_to "Sign In", new_user_session_path, class:"navbar-item button is-warning" %>
+            <%= link_to "Sign up", new_user_registration_path, class:"navbar-item button is-warning"%>
+
+            <% end %>
+
+            </div>
+          </div>
+        </div>
+    </div>
+  </nav>
+
+  <%= yield(:header) %>
+
+  <div class="container">
+
+    <%= yield %>
+
+  </div>
+
+  </body>
+</html>
+---
+app/helpers/application_helper.rb
+---
+module ApplicationHelper
+
+  def cart_count_over_one
+    if @cart.line_items.count > 0
+      return "<span class='tag is-dark'>#{@cart.line_items.count}</span>".html_safe
+    end
+  end
+
+  def cart_has_items
+    return @cart.line_items.count > 0
+  end
+end
+```
+```
+db/seeds.rb
+---
+user = User.new(
+  id: 2,
+  name: "Andy Leverenz",
+  email: "andy@example.com",
+  password: "password",
+  password_confirmation: "password"
+)
+user.save!
+
+Instrument.create!([{
+  title: "Paul Reed Smith Paul's Guitar 2013",
+  brand: "PRS",
+  model: "Paul Reed Smith Paul's Guitar",
+  description: "Donec sed odio dui. Maecenas sed diam eget risus varius blandit sit amet non magna.",
+  condition: "Excellent",
+  finish: "Red",
+  price: "2999",
+  user_id: user.id
+},
+{
+  title: "2017 Gibson Les Paul Standard Bourbon Burst 100% Mint/Unplayed Condition!",
+  brand: "Gibson",
+  model: "Les Paul Standard",
+  description: "Hello and thank you for looking at my Item. We are proud to present this stunning 2018 Gibson Les Paul Standard in Bourbon Burst in 100% Mint/Unplayed condition! The 2017 LP Standards are extremely nice,  with a super comfortable necks, and awesome bold finishes.  This Bourbon Burst finish is absolutely stunning! The tone that comes out of this monster is everything you would expect from a Les Paul Standard!! The guitar sounds awesome and has that famous Les Paul  Tone.  Very easy to play with a nice comfortable standard neck featuring a compound radius fret board which means shredding speed is easier on a Gibson! This is one great guitar for the money!  Will  ship via Fed Ex Ground or Home Delivery in Brand New Gibson case with pictured case candy insured for full purchase price!",
+  condition: "Used",
+  finish: "Red",
+  price: "2595",
+  user_id: user.id
+},
+{
+  title: "Suhr Classic Antique Pro SSS Limited - Surf Green Over 3 Tone Sunburst",
+  brand: "Suhr",
+  model: "Antique Pro SSS Limited",
+  description: "Our customers have asked for an instrument that has a vintage look and feel, without sacrificing playability and tone. Enter the Classic Antique™. We designed this guitar to ensure it preserves the spirit of a vintage instrument while performing like a Suhr. Impeccable craftsmanship and attention to detail ensure that every neck pocket is tight, every fret is perfectly dressed, and that every instrument is ready for peak performance before leaving our facility.
+The nitro-cellulose lacquer finish and our proprietary antiquing process make each Classic Antique™ feel like it has been loved for years. The Classic Antique now includes: our innovative SSCII (Silent Single-Coil) hum cancelling system, a vintage tinted nitrocellulose neck with stainless steel frets, and a Maple fingerboard option.",
+  condition: "New",
+  finish: "Seafoam",
+  price: "2845",
+  user_id: user.id
+},
+{
+  title: "Fender American Professional Series Telecaster",
+  brand: "Fender",
+  model: "Telecaster",
+  description: "The Fender American Professional Series Telecaster brings the company's original electric guitar rocketing into the 21st century with a full complement of upgraded electronics and appointments. Sporting a pair of V-Mod Single-Coil pickups designed by guitar sensei Tim Shaw himself, each pup is custom designed for its placement to get the most out of your neck and bridge. For those who want that trebled Tele scream in lower volume settings, have no fear: the new treble bleed circuit standard on the American Pro Series ensures you get that same presence regardless of where you have the volume knob.",
+  condition: "New",
+  finish: "Clear",
+  price: "960",
+  user_id: user.id
+},
+{
+  title: "Gibson SG Special",
+  brand: "Gibson",
+  model: "SG",
+  description: "The Gibson SG Special Faded was born from a variety of small changes made to Gibson instruments over the course of 50-plus years. The SG Special evolved from the Les Paul Special in the early '60s, and was meant to be a less expensive, stripped-down version of the SG Standard for no-frills players. The SG Special Faded, released in 2002 and still in production today, implemented another cost-reducing measure: the use of a light satin finish. Those digging the SG body shape but who don't need unnecessary bells and whistles may want to take a look at the Gibson SG Special Faded. ",
+  condition: "Used",
+  finish: "Red",
+  price: "599",
+  user_id: user.id
+},
+{
+  title: "Ibanez PM20 Pat Metheny Signature + Hard Shell case",
+  brand: "Ibanez",
+  model: "SG",
+  description: "Path Metheny Signature model guitar in excellent condition. Near zero fret wear and electronics work as expected. Gorgeous natural finish and high quality materials. Back looks amazing as well. No buzz nor issues, low action and very nice tone.",
+  condition: "Used",
+  finish: "Yellow",
+  price: "799",
+  user_id: user.id
+}])
+---
