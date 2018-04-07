@@ -1762,3 +1762,243 @@ class LineItem < ApplicationRecord
   end
 end
 ---
+```
+# 修改 cart 的样式
+```
+app/views/carts/show.html.erb
+---
+<p id="notice"><%= notice %></p>
+
+<%= link_to 'Edit', edit_cart_path(@cart) %> |
+<%= link_to 'Back', carts_path %>
+---
+<div class="keep-shopping pv1 mt4 has-text-right">
+  <%= link_to 'Keep Shopping', instruments_path, class: 'button is-warning' %>
+</div>
+<hr />
+<section class="section">
+  <%= render(@cart.line_items) %>
+
+  <div class="columns">
+    <div class="column">
+      <%= button_to 'Empty Cart', @cart, method: :delete, data: { confirm: "Are you sure? " }, class: "button is-danger" %>
+    </div>
+    <div class="column total has-text-right">
+      <h4 class="title is-4">
+        <span class="f5 has-text-grey">Total:</span> <%= number_to_currency(@cart.total_price) %>
+      </h4>
+    </div>
+  </div>
+</section>
+---
+app/views/line_items/_line_item.html.erb
+---
+<div class="columns align-items-center">
+  <div class="column is-1">
+    <%= line_item.quantity %>
+  </div>
+  <div class="column is-2">
+    <figure class="is-128x128 image">
+      <%= image_tag(line_item.instrument.image_url(:thumb)) %>
+    </figure>
+  </div>
+  <div class="column is-9">
+    <strong><%= line_item.instrument.title %></strong>
+    <div class="columns align-items-center">
+      <div class="content column is-9">
+        <%= truncate(line_item.instrument.description, length: 140) %>
+      </div>
+      <div class="column is-3 has-text-right">
+        <strong class="f4"><%= number_to_currency(line_item.total_price) %></strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="has-text-right">
+  <%= link_to 'Remove Item', line_item, method: :delete, data: { confirm: "Are you sure? " }, class: "button is-small mb4" %>
+</div>
+
+<hr/ >
+---
+```
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3vcwzbalj31kw09t0tl.jpg)
+![image](https://ws1.sinaimg.cn/large/006tNc79gy1fq3vs845g9j31kw0pj40t.jpg)
+
+```
+app/views/layouts/application.html.erb
+---
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flanger</title>
+    <%= csrf_meta_tags %>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <%= stylesheet_link_tag 'https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' %>
+    <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application' %>
+  </head>
+
+  <body class="<%= yield (:body_class) %>">
+    <% if flash[:notice] %>
+      <div class="notification is-success global-notification">
+        <p class="notice"><%= notice %></p>
+      </div>
+    <% end %>
+    <% if flash[:alert] %>
+    <div class="notification is-danger global-notification">
+      <p class="alert"><%= alert %></p>
+    </div>
+    <% end %>
+     <nav class="navbar is-warning" role="navigation" aria-label="main navigation">
+      <div class="navbar-brand">
+        <%= link_to root_path, class:"navbar-item" do %>
+          <h1 class="title is-5">Flanger</h1>
+        <% end  %>
+      <div class="navbar-burger burger" data-target="navbar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+      <div id="navbar" class="navbar-menu">
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <div class="field is-grouped">
+
+            <%# if cart_has_items %>
+              <%#= link_to cart_path(@cart), class:"navbar-item button is-warning" do %>
+          <!--    <span class="icon is-small">
+                <i class="fa fa-shopping-cart"></i>
+              </span>
+              <span>Cart
+                <%#= cart_count_over_one %>
+              </span> -->
+              <%# end %>
+            <%# end %>
+
+            <% if user_signed_in? %>
+              <%= link_to 'Sell', new_instrument_path, class: "navbar-item button is-dark" %>
+
+              <div class="navbar-item has-dropdown is-hoverable">
+                <%= link_to 'Account', edit_user_registration_path, class: "navbar-link" %>
+                <div class="navbar-dropdown is-right">
+                  <%= link_to current_user.name, edit_user_registration_path, class:"navbar-item" %>
+                  <%= link_to "Log Out", destroy_user_session_path, method: :delete, class:"navbar-item" %>
+                </div>
+              </div>
+            <% else %>
+
+            <%= link_to "Sign In", new_user_session_path, class:"navbar-item button is-warning" %>
+            <%= link_to "Sign up", new_user_registration_path, class:"navbar-item button is-warning"%>
+
+            <% end %>
+
+            </div>
+          </div>
+        </div>
+    </div>
+  </nav>
+
+  <%= yield(:header) %>
+
+  <div class="container">
+
+    <%= yield %>
+
+  </div>
+
+  </body>
+</html>
+---
+app/helpers/application_helper.rb
+---
+module ApplicationHelper
+
+  def cart_count_over_one
+    if @cart.line_items.count > 0
+      return "<span class='tag is-dark'>#{@cart.line_items.count}</span>".html_safe
+    end
+  end
+
+  def cart_has_items
+    return @cart.line_items.count > 0
+  end
+end
+```
+```
+db/seeds.rb
+---
+user = User.new(
+  id: 2,
+  name: "Andy Leverenz",
+  email: "andy@example.com",
+  password: "password",
+  password_confirmation: "password"
+)
+user.save!
+
+Instrument.create!([{
+  title: "Paul Reed Smith Paul's Guitar 2013",
+  brand: "PRS",
+  model: "Paul Reed Smith Paul's Guitar",
+  description: "Donec sed odio dui. Maecenas sed diam eget risus varius blandit sit amet non magna.",
+  condition: "Excellent",
+  finish: "Red",
+  price: "2999",
+  user_id: user.id
+},
+{
+  title: "2017 Gibson Les Paul Standard Bourbon Burst 100% Mint/Unplayed Condition!",
+  brand: "Gibson",
+  model: "Les Paul Standard",
+  description: "Hello and thank you for looking at my Item. We are proud to present this stunning 2018 Gibson Les Paul Standard in Bourbon Burst in 100% Mint/Unplayed condition! The 2017 LP Standards are extremely nice,  with a super comfortable necks, and awesome bold finishes.  This Bourbon Burst finish is absolutely stunning! The tone that comes out of this monster is everything you would expect from a Les Paul Standard!! The guitar sounds awesome and has that famous Les Paul  Tone.  Very easy to play with a nice comfortable standard neck featuring a compound radius fret board which means shredding speed is easier on a Gibson! This is one great guitar for the money!  Will  ship via Fed Ex Ground or Home Delivery in Brand New Gibson case with pictured case candy insured for full purchase price!",
+  condition: "Used",
+  finish: "Red",
+  price: "2595",
+  user_id: user.id
+},
+{
+  title: "Suhr Classic Antique Pro SSS Limited - Surf Green Over 3 Tone Sunburst",
+  brand: "Suhr",
+  model: "Antique Pro SSS Limited",
+  description: "Our customers have asked for an instrument that has a vintage look and feel, without sacrificing playability and tone. Enter the Classic Antique™. We designed this guitar to ensure it preserves the spirit of a vintage instrument while performing like a Suhr. Impeccable craftsmanship and attention to detail ensure that every neck pocket is tight, every fret is perfectly dressed, and that every instrument is ready for peak performance before leaving our facility.
+The nitro-cellulose lacquer finish and our proprietary antiquing process make each Classic Antique™ feel like it has been loved for years. The Classic Antique now includes: our innovative SSCII (Silent Single-Coil) hum cancelling system, a vintage tinted nitrocellulose neck with stainless steel frets, and a Maple fingerboard option.",
+  condition: "New",
+  finish: "Seafoam",
+  price: "2845",
+  user_id: user.id
+},
+{
+  title: "Fender American Professional Series Telecaster",
+  brand: "Fender",
+  model: "Telecaster",
+  description: "The Fender American Professional Series Telecaster brings the company's original electric guitar rocketing into the 21st century with a full complement of upgraded electronics and appointments. Sporting a pair of V-Mod Single-Coil pickups designed by guitar sensei Tim Shaw himself, each pup is custom designed for its placement to get the most out of your neck and bridge. For those who want that trebled Tele scream in lower volume settings, have no fear: the new treble bleed circuit standard on the American Pro Series ensures you get that same presence regardless of where you have the volume knob.",
+  condition: "New",
+  finish: "Clear",
+  price: "960",
+  user_id: user.id
+},
+{
+  title: "Gibson SG Special",
+  brand: "Gibson",
+  model: "SG",
+  description: "The Gibson SG Special Faded was born from a variety of small changes made to Gibson instruments over the course of 50-plus years. The SG Special evolved from the Les Paul Special in the early '60s, and was meant to be a less expensive, stripped-down version of the SG Standard for no-frills players. The SG Special Faded, released in 2002 and still in production today, implemented another cost-reducing measure: the use of a light satin finish. Those digging the SG body shape but who don't need unnecessary bells and whistles may want to take a look at the Gibson SG Special Faded. ",
+  condition: "Used",
+  finish: "Red",
+  price: "599",
+  user_id: user.id
+},
+{
+  title: "Ibanez PM20 Pat Metheny Signature + Hard Shell case",
+  brand: "Ibanez",
+  model: "SG",
+  description: "Path Metheny Signature model guitar in excellent condition. Near zero fret wear and electronics work as expected. Gorgeous natural finish and high quality materials. Back looks amazing as well. No buzz nor issues, low action and very nice tone.",
+  condition: "Used",
+  finish: "Yellow",
+  price: "799",
+  user_id: user.id
+}])
+---
